@@ -76,13 +76,9 @@ function minimize_changes_per_day() {
     min_changes_heap_init();
     carried_over_accounts_init();
     for(i = 0; i < reset_period; i++) {
-        # if day i has more than max_changes_per_day, attempt to greedily shift any accounts to previous days
         while(0 < min_changes_heap_size && max_changes_per_day < acct_changes_dictionary_size_on_day(i))
             move_from_day_to_min_previous_day(i);
         
-        # if day i still has more than max_changes_per_day, or if any accounts are already being carried over from previous days
-        #   then (a) give carried over accounts priority over anything in day i, and (b) add any overages from day i
-        #   to the carried over account queue
         if(max_changes_per_day < acct_changes_dictionary_size_on_day(i) || 0 < carried_over_accounts_size()) {
             while(acct_changes_dictionary_size_on_day(i) > 0) {
                 account_to_move = acct_changes_dictionary_del(i);
@@ -94,14 +90,11 @@ function minimize_changes_per_day() {
             }
         }
         
-        # if day i has at least 2 more accounts than any previous day, greedily shift accounts to earlier days
-        #   (note: if accounts were being carried over in the previous condition, nothing will happen here)
         while(0 < min_changes_heap_size &&
               acct_changes_dictionary_size_on_day(i) > 1 + min_changes_heap_node_value(0)) {
             move_from_day_to_min_previous_day(i);
         }
         
-        # if there is headroom in day i, add it to the min changes heap
         if(max_changes_per_day > acct_changes_dictionary_size_on_day(i))
             min_changes_heap_add(i);
     }
