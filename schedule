@@ -41,8 +41,6 @@ pwd_change_distribution=$(
               -f "$(dirname "$0")/generate_pwd_change_distribution.awk"
 )
 
-echo "$pwd_change_distribution"
-
 accounts_today=$(
     echo "$pwd_change_distribution" \
         | awk 'BEGIN { RS=""; FS="\n" } $1 == 0' \
