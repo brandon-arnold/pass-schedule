@@ -39,15 +39,11 @@ BEGIN {
     change_days_ago = $1
     account = $2
     period_change_day_diff = reset_period - change_days_ago
-    if(0 > period_change_day_diff)
-        change_day = 0;
-    else
-        change_day = period_change_day_diff;
+    change_day = 0 > period_change_day_diff ? 0 : period_change_day_diff;
     acct_changes_dictionary_add(change_day, account)
 }
 
 END {
-    printf("\n");
     minimize_changes_per_day();
     acct_changes_dictionary_print();
 }
