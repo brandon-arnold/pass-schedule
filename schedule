@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 cd ~/.password-store
 password_files=$(find . -name '*.gpg' | head -n 10)
