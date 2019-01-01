@@ -54,8 +54,8 @@ END {
 # This is a greedy algorithm that achieves the schedule specified in the opening comment.
 # 
 # Initialization assumptions:
-#    - acct_changes_dictionary is a lookup ranging from acct_changes_dictionary[0] (today) to acct_changes_dictionary[reset_period]
-#    - each entry of acct_changes_dictionary contains all accounts that expire that day
+#    - acct_changes_dictionary is a lookup with range 0..reset_period (where 0 is today)
+#    - each entry of acct_changes_dictionary is a list of all accounts that expire that day
 # 
 # General Method:
 #    1. Traverses each day of acct_changes_dictionary in order, distributing accounts among strictly earlier days unless:
