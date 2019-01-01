@@ -1,0 +1,52 @@
+#!/bin/bash
+
+cd ~/.password-store
+password_files=$(find . -name '*.gpg' | head -n 10)
+file_count=$(echo "$password_files" | wc -l)
+reset_period=365
+max_changes_per_day=5
+
+if (( max_changes_per_day * reset_period < file_count )); then
+    printf "A reset period of %s days with %s maximum changes per day is too low to sustainably stay up to date with %s passwords. Please increase one or both and try again.\n" "$reset_period" "$max_changes_per_day" "$file_count"
+    exit
+fi
+
+# prints a percentage progress output to /dev/tty (assumes being called $(file_count) times)
+current_file=0
+show_file_progress_update() {
+    current_file=$((current_file + 1))
+    progress_percent=$((current_file * 100 / file_count))
+    printf "\rReviewing last password changes...%s%%" "$progress_percent" > /dev/tty
+}
+
+# checks the password line of every account gpg file to see the last change date
+# returns the following line for every account:
+# <days since last password change> <account gpg filename>
+get_change_days_ago_for_each_file() {
+    while read -r filename; do
+        show_file_progress_update
+        last_commit_affecting_first_line=$(git -C ~/.password-store --no-pager blame -L1,1 "$filename" | awk '{ print $1 }')
+        commit_date=$(git -C ~/.password-store --no-pager show -s --format=%cd --date=iso "$last_commit_affecting_first_line")
+        commit_days_ago=$((($(date +%s)-$(date +%s --date "$commit_date"))/(3600*24)))
+        printf "%s\t%s\n" "$commit_days_ago" "$filename"
+    done <<< "$password_files"
+}
+
+change_days_ago_for_each_file=$(get_change_days_ago_for_each_file)
+
+pwd_change_distribution=$(
+    echo "$change_days_ago_for_each_file" \
+        | awk -v reset_period="$reset_period" \
+              -v max_changes_per_day="$max_changes_per_day" \
+              -f "$(dirname "$0")/generate_pwd_change_distribution.awk"
+)
+
+echo "$pwd_change_distribution"
+
+accounts_today=$(
+    echo "$pwd_change_distribution" \
+        | awk 'BEGIN { RS=""; FS="\n" } $1 == 0' \
+        | tail -n +2
+)
+
+printf "\n\nAccounts to change today:\n\n%s\n\n" "$accounts_today"
