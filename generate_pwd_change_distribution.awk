@@ -213,7 +213,7 @@ function carried_over_accounts_init() {
 }
 
 function carried_over_accounts_size() {
-    return carried_over_accounts_tail - carried_over_accounts_head;
+    return carried_over_accounts_tail - carried_over_accounts_head + 1;
 }
 
 function carried_over_accounts_enqueue(account) {
