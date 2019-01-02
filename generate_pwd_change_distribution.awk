@@ -68,7 +68,7 @@ END {
 #    - A min heap is maintained to keep track of openings in preceding days
 #    - Filenames carried over are stored on a queue to ensure they are prioritized by expiration urgency
 # 
-function minimize_changes_per_day() {
+function minimize_changes_per_day(                     i,account) {
     min_changes_heap_init();
     carried_over_accounts_init();
     for(i = 0; i < reset_period; i++) {
@@ -77,12 +77,12 @@ function minimize_changes_per_day() {
         
         if(max_changes_per_day < acct_changes_dictionary_size_on_day(i) || 0 < carried_over_accounts_size()) {
             while(acct_changes_dictionary_size_on_day(i) > 0) {
-                account_to_move = acct_changes_dictionary_del(i);
-                carried_over_accounts_enqueue(account_to_move);
+                account = acct_changes_dictionary_del(i);
+                carried_over_accounts_enqueue(account);
             }
             while(acct_changes_dictionary_size_on_day(i) < max_changes_per_day && 0 < carried_over_accounts_size()) {
-                account_to_move = carried_over_accounts_dequeue();
-                acct_changes_dictionary_add(i, account_to_move);
+                account = carried_over_accounts_dequeue();
+                acct_changes_dictionary_add(i, account);
             }
         }
         
@@ -100,21 +100,21 @@ function minimize_changes_per_day() {
 # acct_changes_dictionary operations
 ##############################################################################################################################
 
-function acct_changes_dictionary_init() {
+function acct_changes_dictionary_init(                           i) {
     for(i = 0; i < reset_period; i++)
         acct_changes_dictionary[i][0] = 0;
 }
 
-function acct_changes_dictionary_add(day_to_add, account_to_add) {
-    num_accounts_on_add_day = 1 + acct_changes_dictionary[day_to_add][0];
-    acct_changes_dictionary[day_to_add][0] = num_accounts_on_add_day;
-    acct_changes_dictionary[day_to_add][num_accounts_on_add_day] = account_to_add;
+function acct_changes_dictionary_add(day, account,               num_accounts) {
+    num_accounts = 1 + acct_changes_dictionary[day][0];
+    acct_changes_dictionary[day][0] = num_accounts;
+    acct_changes_dictionary[day][num_accounts] = account;
 }
 
-function acct_changes_dictionary_del(day_to_del) {
-    num_accounts_on_del_day = acct_changes_dictionary[day_to_del][0];
-    account_to_drop = acct_changes_dictionary[day_to_del][num_accounts_on_del_day];
-    acct_changes_dictionary[day_to_del][0] = num_accounts_on_del_day - 1;
+function acct_changes_dictionary_del(day,                        num_accounts) {
+    num_accounts = acct_changes_dictionary[day][0];
+    account_to_drop = acct_changes_dictionary[day][num_accounts];
+    acct_changes_dictionary[day][0] = num_accounts - 1;
     return account_to_drop;
 }
 
@@ -122,15 +122,15 @@ function acct_changes_dictionary_size_on_day(day) {
     return acct_changes_dictionary[day][0];
 }
 
-function acct_changes_dictionary_print() {
-    for(day_to_print = 0; day_to_print < reset_period; day_to_print++) {
-        if(0 < acct_changes_dictionary_size_on_day(day_to_print)) 
-            printf("%s\n", day_to_print);
-        for(account_on_day = 1; account_on_day <= acct_changes_dictionary_size_on_day(day_to_print); account_on_day++) {
-            account_to_display = acct_changes_dictionary[day_to_print][account_on_day];
-            printf("%s\n", account_to_display);
+function acct_changes_dictionary_print(                          i,j,account) {
+    for(i = 0; i < reset_period; i++) {
+        if(0 < acct_changes_dictionary_size_on_day(i)) 
+            printf("%s\n", i);
+        for(j = 1; j <= acct_changes_dictionary_size_on_day(i); j++) {
+            account = acct_changes_dictionary[i][j];
+            printf("%s\n", account);
         }
-        if(0 < acct_changes_dictionary_size_on_day(day_to_print)) 
+        if(0 < acct_changes_dictionary_size_on_day(i)) 
             printf("\n");
     }
 }
@@ -153,7 +153,7 @@ function min_changes_heap_add(day) {
     min_changes_heap_bubble_up(min_changes_heap_size - 1);
 }
 
-function min_changes_heap_del() {
+function min_changes_heap_del(                                   min_day) {
     if(min_changes_heap_size > 0) {
         min_day = min_changes_heap[0];
         min_changes_heap[0] = min_changes_heap[min_changes_heap_size - 1];
@@ -163,42 +163,44 @@ function min_changes_heap_del() {
     }
 }
 
-function min_changes_heap_node_value(node_with_value) {
-    return acct_changes_dictionary_size_on_day(min_changes_heap[node_with_value]);
+function min_changes_heap_node_value(node) {
+    return acct_changes_dictionary_size_on_day(min_changes_heap[node]);
 }
 
-function move_from_day_to_min_previous_day(day) {
-    cur_min_day = min_changes_heap_del();
+function move_from_day_to_min_previous_day(day,                  min_day,account_to_move) {
+    min_day = min_changes_heap_del();
     account_to_move = acct_changes_dictionary_del(day);
-    acct_changes_dictionary_add(cur_min_day, account_to_move);
-    if(min_day_size < max_changes_per_day)
-        min_changes_heap_add(cur_min_day);
+    acct_changes_dictionary_add(min_day, account_to_move);
+    if(acct_changes_dictionary_size_on_day(min_day) < max_changes_per_day)
+        min_changes_heap_add(min_day);
 }
 
-function min_changes_heap_bubble_up(node_to_bubble) {
-    if(node_to_bubble > 0) {
-        parent = (node_to_bubble - 1) / 2;
-        if(min_changes_heap_node_value(parent) > min_changes_heap_node_value(node_to_bubble)) {
-            min_changes_heap_swap(node_to_bubble, parent);
+function min_changes_heap_bubble_up(node,                        parent) {
+    if(node > 0) {
+        parent = (node - 1) / 2;
+        if(min_changes_heap_node_value(parent) > min_changes_heap_node_value(node)) {
+            min_changes_heap_swap(node, parent);
             min_changes_heap_bubble_up(parent);
         }
     }
 }
 
-function min_changes_heap_swap(first, second) {
-    temp = min_changes_heap[first];
-    min_changes_heap[first] = min_changes_heap[second];
-    min_changes_heap[second] = temp;
+function min_changes_heap_swap(i,j,                              temp) {
+    temp = min_changes_heap[i];
+    min_changes_heap[i] = min_changes_heap[j];
+    min_changes_heap[j] = temp;
 }
 
-function min_changes_heap_bubble_down(node_to_bubble) {
-    left = 2 * node_to_bubble + 1;
-    right = 2 * node_to_bubble + 2;
-    if(left < min_changes_heap_size && min_changes_heap_node_value(node_to_bubble) > min_changes_heap_node_value(left)) {
-        min_changes_heap_swap(node_to_bubble, left);
+function min_changes_heap_bubble_down(node,                      left,right) {
+    left = 2 * node + 1;
+    right = 2 * node + 2;
+    if(left < min_changes_heap_size &&
+       min_changes_heap_node_value(node) > min_changes_heap_node_value(left)) {
+        min_changes_heap_swap(node, left);
         min_changes_heap_bubble_down(left);
-    } else if(right < min_changes_heap_size && min_changes_heap_node_value(node_to_bubble) > min_changes_heap_node_value(right)) {
-        min_changes_heap_swap(node_to_bubble, right);
+    } else if(right < min_changes_heap_size &&
+              min_changes_heap_node_value(node) > min_changes_heap_node_value(right)) {
+        min_changes_heap_swap(node, right);
         min_changes_heap_bubble_down(right);
     }
 }
