@@ -34,11 +34,13 @@ get_change_days_ago_for_each_file() {
 
 change_days_ago_for_each_file=$(get_change_days_ago_for_each_file)
 
+script_dir="$(dirname "$(readlink -f "$0")")"
+
 pwd_change_distribution=$(
     echo "$change_days_ago_for_each_file" \
         | awk -v reset_period="$reset_period" \
               -v max_changes_per_day="$max_changes_per_day" \
-              -f "$(dirname "$0")/generate_pwd_change_distribution.awk"
+              -f "$script_dir/generate_pwd_change_distribution.awk"
 )
 
 accounts_today=$(
