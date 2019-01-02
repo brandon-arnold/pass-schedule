@@ -1,25 +1,33 @@
 ##############################################################################################################################
 #
 # Purpose: Outputs an account password change schedule with the following constraints:
-# - If possible within the max_changes_per_day constraint, no account password will expire
+#
+# - If possible with specified max_changes_per_day, no account password will expire
 # - Minimize the number of passwords that are changed on any one day
 #
-# Input variables:
+# Accepted arguments/variables:
+#
 #  - reset_period (days, e.g. 365)
 #  - max_changes_per_day (number, e.g. 5)
 #
 # Input format:
+#
 #  - Expect lines of the form:
+#
 #    <days since last change>    <account>
+#
 #  - Example input records:
+#
 #    380    ./News/Reference/nytimes.com.gpg
 #    385    ./News/Reference/quora.com.gpg
 #    150    ./News/Reference/wsj.com.gpg
 #
 # Output format:
+#
 #  - Sections beginning in a future date (represented as number of days after today),
 #    followed by each account on a separate line
 #  - Example output records:
+#
 #    0
 #    ./News/Reference/nytimes.com.gpg
 #    ./News/Reference/quora.com.gpg
