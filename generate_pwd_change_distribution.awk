@@ -1,11 +1,7 @@
-##############################################################################################################################
 #
-# Purpose: Outputs an account password change schedule with the following constraints:
+# Purpose: Given a list of accounts and their password expiration days, outputs an account password change schedule
 #
-# - If possible with specified max_changes_per_day, no account password will expire
-# - Minimize the number of passwords that are changed on any one day
-#
-# Accepted arguments/variables:
+# Optional arguments:
 #
 #  - reset_period (days, e.g. 365)
 #  - max_changes_per_day (number, e.g. 5)
@@ -35,15 +31,17 @@
 #    150
 #    ./News/Reference/wsj.com.gpg
 #
-# See minimize_changes_per_day() for how this schedule is achieved.
-#
-##############################################################################################################################
 
 BEGIN {
+    # check for arguments or set to defaults
+    if(0 == length(reset_period)) { reset_period = 365 }
+    if(0 == length(max_changes_per_day)) { max_changes_per_day = 5 }
     acct_changes_dictionary_init()
 }
 
 {
+    # stores current line in its respective day in acct_changes_dictionary
+    # (see acct_changes_dictionary section below)
     change_days_ago = $1
     account = $2
     period_change_day_diff = reset_period - change_days_ago
@@ -52,29 +50,77 @@ BEGIN {
 }
 
 END {
+    # acct_changes_dictionary should now be initialized to all accounts that expire that day
     minimize_changes_per_day();
     acct_changes_dictionary_print();
+}
+
+
+#
+# acct_changes_dictionary Operations
+#
+# These manage the global lookup: acct_changes_dictionary[day]
+#
+#   - lookup key is a number (days counting from today, where today is 0)
+#   - accessed value is another array, with:
+#     - acct_changes_dictionary[day][0] = number of accounts to have passwords changed that day
+#     - acct_changes_dictionary[day][n] = filename of nth account to be changed that day
+#
+
+function acct_changes_dictionary_init(                           i) {
+    for(i = 0; i < reset_period; i++)
+        acct_changes_dictionary[i][0] = 0;
+}
+
+function acct_changes_dictionary_add(day, account,               num_accounts) {
+    num_accounts = 1 + acct_changes_dictionary[day][0];
+    acct_changes_dictionary[day][0] = num_accounts;
+    acct_changes_dictionary[day][num_accounts] = account;
+}
+
+function acct_changes_dictionary_del(day,                        num_accounts,account) {
+    num_accounts = acct_changes_dictionary[day][0];
+    account = acct_changes_dictionary[day][num_accounts];
+    acct_changes_dictionary[day][0] = num_accounts - 1;
+    return account;
+}
+
+function acct_changes_dictionary_size_on_day(day) {
+    return acct_changes_dictionary[day][0];
+}
+
+function acct_changes_dictionary_print(                          i,j,account) {
+    for(i = 0; i < reset_period; i++) {
+        if(0 < acct_changes_dictionary_size_on_day(i)) 
+            printf("%s\n", i);
+        for(j = 1; j <= acct_changes_dictionary_size_on_day(i); j++) {
+            account = acct_changes_dictionary[i][j];
+            printf("%s\n", account);
+        }
+        if(0 < acct_changes_dictionary_size_on_day(i)) 
+            printf("\n");
+    }
 }
 
 #
 # minimize_changes_per_day()
 # 
-# This is a greedy algorithm that achieves the schedule specified in the opening comment.
-# 
-# Initialization assumptions:
-#    - acct_changes_dictionary is a lookup with range 0..reset_period (where 0 is today)
-#    - each entry of acct_changes_dictionary is a list of all accounts that expire that day
+# Greedy implementation that achieves a schedule with these characteristics:
+# - If possible with specified max_changes_per_day, no account password will expire
+# - Minimize the number of passwords that are changed on any one day
 # 
 # General Method:
 #    1. Traverses each day of acct_changes_dictionary in order, distributing accounts among strictly earlier days unless:
-#       a. All preceding days already have max_changes_per_day accounts
+#       a. All preceding days already have max_changes_per_day accounts, OR
 #       b. Currently visited day has about the same (within 1) number of accounts to change as all preceding days
 #    2. If (a) is true, accounts will be carried over to future days and will have priority until
 #       no more are carried over, at which point (1) continues.
 # 
 # Further notes:
 #    - A min heap is maintained to keep track of openings in preceding days
+#      - see comments about min_changes_heap below
 #    - Filenames carried over are stored on a queue to ensure they are prioritized by expiration urgency
+#      - see comments about carried_over_accounts queue below
 # 
 function minimize_changes_per_day(                     i,account) {
     min_changes_heap_init();
@@ -104,49 +150,17 @@ function minimize_changes_per_day(                     i,account) {
     }
 }
 
-##############################################################################################################################
-# acct_changes_dictionary operations
-##############################################################################################################################
-
-function acct_changes_dictionary_init(                           i) {
-    for(i = 0; i < reset_period; i++)
-        acct_changes_dictionary[i][0] = 0;
-}
-
-function acct_changes_dictionary_add(day, account,               num_accounts) {
-    num_accounts = 1 + acct_changes_dictionary[day][0];
-    acct_changes_dictionary[day][0] = num_accounts;
-    acct_changes_dictionary[day][num_accounts] = account;
-}
-
-function acct_changes_dictionary_del(day,                        num_accounts) {
-    num_accounts = acct_changes_dictionary[day][0];
-    account_to_drop = acct_changes_dictionary[day][num_accounts];
-    acct_changes_dictionary[day][0] = num_accounts - 1;
-    return account_to_drop;
-}
-
-function acct_changes_dictionary_size_on_day(day) {
-    return acct_changes_dictionary[day][0];
-}
-
-function acct_changes_dictionary_print(                          i,j,account) {
-    for(i = 0; i < reset_period; i++) {
-        if(0 < acct_changes_dictionary_size_on_day(i)) 
-            printf("%s\n", i);
-        for(j = 1; j <= acct_changes_dictionary_size_on_day(i); j++) {
-            account = acct_changes_dictionary[i][j];
-            printf("%s\n", account);
-        }
-        if(0 < acct_changes_dictionary_size_on_day(i)) 
-            printf("\n");
-    }
-}
-
-##############################################################################################################################
-# min_changes_heap operations
-##############################################################################################################################
-
+#
+# min_changes_heap Operations
+#
+# Following are methods for managing a heap for keeping track of the minimum
+#  day of the acct_changes_dictionary. Heap root entry (e.g. min_changes_heap[0])
+#  is the day of acct_changes_dictionary with minimal accounts.
+#
+# Functions below provide the following global variables:
+# - min_changes_heap_size: number, the size of the heap
+# - min_changes_heap: array that is the binary heap of specified size
+#
 function min_changes_heap_init() {
     min_changes_heap_size = 0;
 }
@@ -213,10 +227,17 @@ function min_changes_heap_bubble_down(node,                      left,right) {
     }
 }
 
-##############################################################################################################################
-# carried_over_accounts queue operations
-##############################################################################################################################
-
+#
+# carried_over_accounts Operations
+#
+# Following methods maintain a FIFO queue of accounts, used in minimize_changes_per_days()
+#  to give priority to earlier days' accounts as they are brought forward to future days
+#
+# Functions below provide the following global variables:
+# - carried_over_accounts: array containing the members of the queue
+# - carried_over_accounts_head: address of queue head in carried_over_accounts
+# - carried_over_accounts_tail: address of queue tail in carried_over_accounts
+#
 function carried_over_accounts_init() {
     carried_over_accounts_head = 0;
     carried_over_accounts_tail = -1;
